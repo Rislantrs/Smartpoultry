@@ -1,0 +1,6 @@
+{
+  "name": "SmartPoultry",
+  "description": "Platform pencatatan dan analisis pintar untuk peternakan ayam petelur berbasis AI",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
