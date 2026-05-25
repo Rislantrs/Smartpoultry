@@ -6,12 +6,14 @@
  * yang mengaktifkan notifikasi Telegram.
  * 
  * Setup cron di Supabase Dashboard → Database → Cron Jobs:
- *   Schedule: 0 0 * * *  (jam 00:00 UTC = 07:00 WIB)
+ *   Schedule: 0 * * * *  (atau setiap jam 0)
  *   Command:  SELECT net.http_post(
  *               url := 'https://lzxpxynfskqerwtzmbcd.supabase.co/functions/v1/telegram-daily-report',
  *               headers := '{"Authorization": "Bearer <SUPABASE_SERVICE_ROLE_KEY>", "Content-Type": "application/json"}',
- *               body := '{}'
+ *               body := '{}',
+ *               timeout_milliseconds := 30000
  *             );
+ *   PENTING: Tambahkan `timeout_milliseconds := 30000` karena fungsi ini memanggil LLM AI yang mungkin butuh waktu lebih dari 1 detik (default timeout).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"

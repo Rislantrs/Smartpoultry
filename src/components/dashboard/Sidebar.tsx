@@ -302,7 +302,7 @@ export default function Sidebar({ isOpen, onToggle, isMobileOpen, onMobileClose,
 
       {/* User Info Section */}
       <div className={`shrink-0 border-t border-white/5 ${isOpen ? 'px-4 py-4' : 'px-3 py-4'}`}>
-        <div className={`flex items-center ${isOpen ? 'gap-3' : 'justify-center'}`}>
+        <div className={`flex items-center ${isOpen ? 'gap-3' : 'flex-col gap-3 justify-center'}`}>
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-gold to-yolk-accent flex items-center justify-center shrink-0 text-warm-earth font-bold text-sm shadow-md overflow-hidden">
             {googleAvatar ? (
               <img src={googleAvatar} alt={ownerName} className="w-full h-full object-cover" />
@@ -324,20 +324,13 @@ export default function Sidebar({ isOpen, onToggle, isMobileOpen, onMobileClose,
               </motion.div>
             )}
           </AnimatePresence>
-          <AnimatePresence>
-            {isOpen && (
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onLogout}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer shrink-0"
-                title="Keluar"
-              >
-                <LogOut className="w-4 h-4" />
-              </motion.button>
-            )}
-          </AnimatePresence>
+          <button
+            onClick={onLogout}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+            title="Keluar (Logout)"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

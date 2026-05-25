@@ -12,13 +12,67 @@ export default function LoginPage() {
   const DEMO_MODE_KEY = 'sp_demo_mode';
   const DEMO_PROFILE_ID_KEY = 'sp_demo_profile_id';
 
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
   // Check if session is already active. If yes, redirect to dashboard.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/dashboard');
+    let active = true;
+
+    const demoModeEnabled = localStorage.getItem(DEMO_MODE_KEY) === '1';
+    if (demoModeEnabled) {
+      setIsCheckingAuth(false);
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    const checkSession = async () => {
+      try {
+        let { data: { session } } = await supabase.auth.getSession();
+        
+        // Polling toleransi jika ada token redirect OAuth di hash URL
+        if (!session && window.location.hash.includes('access_token=')) {
+          console.log('[Login Auth] Hash OAuth terdeteksi. Menunggu parsing sesi...');
+          for (let i = 0; i < 5; i++) {
+            await new Promise(r => setTimeout(r, 300));
+            if (!active) return;
+            const res = await supabase.auth.getSession();
+            if (res.data.session) {
+              session = res.data.session;
+              break;
+            }
+          }
+        }
+
+        if (!active) return;
+
+        if (session) {
+          console.log('[Login Auth] Sesi aktif ditemukan. Mengalihkan ke dashboard...');
+          navigate('/dashboard', { replace: true });
+        } else {
+          setIsCheckingAuth(false);
+        }
+      } catch (err) {
+        console.error('[Login Auth] Gagal mengecek sesi:', err);
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
+      const isDemo = localStorage.getItem(DEMO_MODE_KEY) === '1' || session?.user?.email === 'demo@smartpoultry.ai';
+
+      if (session && !isDemo) {
+        navigate('/dashboard', { replace: true });
       }
     });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleGoogleLogin = async () => {
@@ -103,6 +157,21 @@ export default function LoginPage() {
       setErrorMsg(err.message || 'Gagal masuk ke Mode Demo. Silakan periksa pengaturan browser Anda.');
     }
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#faf8f4]">
+        <div className="relative mb-6 flex h-20 w-20 items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-4 border-primary-gold/10" />
+          <div className="absolute inset-0 rounded-full border-4 border-t-primary-gold border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+          <Egg className="h-8 w-8 text-primary-gold/60 animate-pulse" />
+        </div>
+        <h3 className="text-sm font-bold text-warm-earth tracking-wider uppercase font-sans">
+          Memverifikasi Sesi...
+        </h3>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-soft-beige select-none">

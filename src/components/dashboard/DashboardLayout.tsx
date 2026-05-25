@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import AiChatPanel from './AiChatPanel';
-import { Egg } from 'lucide-react';
+import { Egg, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   detailedDailyLogs,
@@ -381,6 +381,11 @@ export default function DashboardLayout() {
     profileIdRef.current = profileId;
   }, [profileId]);
 
+  const isCheckingAuthRef = useRef(true);
+  useEffect(() => {
+    isCheckingAuthRef.current = isCheckingAuth;
+  }, [isCheckingAuth]);
+
   // Unified global farm state loaded from Supabase
   const [dailyList, setDailyList] = useState<DetailedDailyLog[]>([]);
   const [vaccineList, setVaccineList] = useState<VaccinationLog[]>([]);
@@ -404,7 +409,7 @@ export default function DashboardLayout() {
   }, []);
 
   // Logout handler
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem(DEMO_MODE_KEY);
     localStorage.removeItem('sp_demo_daily_logs');
     localStorage.removeItem('sp_demo_vaccination_logs');
@@ -412,7 +417,23 @@ export default function DashboardLayout() {
     localStorage.removeItem('sp_demo_maintenance_logs');
     localStorage.removeItem('sp_demo_sales_logs');
     localStorage.removeItem('sp_demo_inventory_logs');
-    await supabase.auth.signOut();
+    localStorage.removeItem('sp_demo_profile_data');
+    localStorage.removeItem('sp_demo_cage_data');
+    
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // Call signOut asynchronously to avoid blocking the local UI redirect if network/database is offline
+    supabase.auth.signOut().catch((err) => {
+      console.warn('Gagal menghubungi Supabase untuk logout (menggunakan local logout):', err);
+    });
+
     setIsDemoMode(false);
     setProfileId(null);
     setProfileData(null);
@@ -428,170 +449,203 @@ export default function DashboardLayout() {
 
   // ── Supabase Auth listener & initial check ──
   useEffect(() => {
-    let authSubscription: any = null;
+    let active = true;
+    let isFetching = false;
+    let didProcess = false;
 
-    const checkUser = async () => {
-      setIsCheckingAuth(true);
-      try {
-        const demoModeEnabled = localStorage.getItem(DEMO_MODE_KEY) === '1';
 
-        let session = null;
-        try {
-          const { data } = await supabase.auth.getSession();
-          session = data.session;
-        } catch (err) {
-          console.warn('Session check failed:', err);
-        }
 
-        const isDemoEmail = session?.user?.email === 'demo@smartpoultry.ai';
-        const isDemo = demoModeEnabled || isDemoEmail;
-
-        if (isDemo) {
-          setIsDemoMode(true);
-          setProfileId(DEMO_PROFILE_ID);
-          setProfileData(getDemoProfileData());
-          setCageData(getDemoCageData());
-          setDailyList(getDemoDailyList());
-          setVaccineList(getDemoVaccineList());
-          setWeeklyList(getDemoWeeklyList());
-          setMaintList(getDemoMaintList());
-          setSalesList(getDemoSalesList());
-          setInventoryList(getDemoInventoryList());
-          return;
-        }
-
-        // Fallback: If no session, redirect to login
-        if (!session) {
-          setIsDemoMode(false);
-          navigate('/login');
-          return;
-        }
-
-        // Active Supabase session
-        if (session) {
-          setProfileId(session.user.id);
-          setIsDemoMode(false);
-
-          try {
-            // 1. Fetch Profile
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .maybeSingle();
-
-            // 2. Fetch Cage Specs
-            const { data: cages } = await supabase
-              .from('cages')
-              .select('*')
-              .eq('profile_id', session.user.id)
-              .limit(1);
-
-            const hasCage = cages && cages.length > 0;
-
-            // Real User: Check if cage config exists
-            if (!profile) {
-              // Create empty profile as placeholder, but don't create cage to trigger questionnaire
-              const emailPrefix = session.user.email ? session.user.email.split('@')[0] : '';
-              const rawName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.user_metadata?.owner_name || emailPrefix || 'Peternak Pintar';
-              const ownerName = rawName.split(/[\s._-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-              const { data: insertedP } = await supabase.from('profiles').insert([{
-                id: session.user.id,
-                farm_name: `${ownerName} Layer Farm`,
-                owner_name: ownerName,
-                location: 'Blitar, Jawa Timur',
-              }]).select().single();
-              setProfileData(insertedP);
-              setShowQuestionnaire(true);
-            } else if (!hasCage) {
-              setProfileData(profile);
-              setShowQuestionnaire(true);
-            } else {
-              setProfileData(profile);
-              setCageData(cages[0]);
-              setShowQuestionnaire(false);
-            }
-          } catch (profileErr) {
-            console.warn('Gagal memvalidasi profil Supabase:', profileErr);
-          }
-
-          // If we are showing questionnaire, wait for submission before loading logs
-          const { data: cagesCheck } = await supabase.from('cages').select('*').eq('profile_id', session.user.id).limit(1);
-          if (cagesCheck && cagesCheck.length > 0) {
-            await loadFarmData(session.user.id);
-          }
-        }
-      } catch (err) {
-        console.error('Critical error in checkUser flow:', err);
-      } finally {
-        setIsCheckingAuth(false);
-      }
+    const syncDemoState = () => {
+      if (!active) return;
+      setIsDemoMode(true);
+      setProfileId(DEMO_PROFILE_ID);
+      setProfileData(getDemoProfileData());
+      setCageData(getDemoCageData());
+      setDailyList(getDemoDailyList());
+      setVaccineList(getDemoVaccineList());
+      setWeeklyList(getDemoWeeklyList());
+      setMaintList(getDemoMaintList());
+      setSalesList(getDemoSalesList());
+      setInventoryList(getDemoInventoryList());
+      setIsCheckingAuth(false);
     };
 
-    checkUser();
+    const handleLogoutRedirect = () => {
+      setIsDemoMode(false);
+      setProfileId(null);
+      setProfileData(null);
+      setCageData(null);
+      setDailyList([]);
+      setVaccineList([]);
+      setWeeklyList([]);
+      setMaintList([]);
+      setSalesList([]);
+      setInventoryList([]);
+      setIsCheckingAuth(false);
 
-    // Subscribe to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const demoModeEnabled = localStorage.getItem(DEMO_MODE_KEY) === '1';
-      const isDemoEmail = session?.user?.email === 'demo@smartpoultry.ai';
-      const isDemo = demoModeEnabled || isDemoEmail;
+      // Clean local storage tokens
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
 
-      if (isDemo) {
-        setIsDemoMode(true);
-        setProfileId(DEMO_PROFILE_ID);
-        setProfileData(getDemoProfileData());
-        setCageData(getDemoCageData());
-        setDailyList(getDemoDailyList());
-        setVaccineList(getDemoVaccineList());
-        setWeeklyList(getDemoWeeklyList());
-        setMaintList(getDemoMaintList());
-        setSalesList(getDemoSalesList());
-        setInventoryList(getDemoInventoryList());
+      navigate('/login', { replace: true });
+    };
+
+    const processSession = async (session: any) => {
+      if (!active) return;
+      if (!session) {
+        handleLogoutRedirect();
         return;
       }
 
-      if (event === 'SIGNED_OUT' || !session) {
-        setIsDemoMode(false);
-        setProfileId(null);
-        setProfileData(null);
-        setCageData(null);
-        setDailyList([]);
-        setVaccineList([]);
-        setWeeklyList([]);
-        setMaintList([]);
-        setSalesList([]);
-        setInventoryList([]);
-        navigate('/login');
-      } else if (event === 'SIGNED_IN' && session) {
-        // Prevent redundant loading if session is already active and matches current profileIdRef.current
-        // This is critical to avoid race conditions and redundant seeding of dummy data!
-        if (profileIdRef.current === session.user.id) {
-          return;
-        }
+      const uid = session.user.id;
+      if (profileIdRef.current === uid && !isFetching) {
+        setIsCheckingAuth(false);
+        return;
+      }
+      if (isFetching) return;
+      isFetching = true;
+      didProcess = true;
 
-        setIsDemoMode(false);
-        setProfileId(session.user.id);
-        setIsCheckingAuth(true);
-        
-        try {
-          // Fetch and load data
-          const { data: cages } = await supabase.from('cages').select('*').eq('profile_id', session.user.id).limit(1);
-          if (cages && cages.length > 0) {
-            setCageData(cages[0]);
-            await loadFarmData(session.user.id);
-          }
-        } catch (err) {
-          console.error('Error during SIGNED_IN auth event processing:', err);
-        } finally {
+      setIsCheckingAuth(true);
+      setIsDemoMode(false);
+      setProfileId(uid);
+
+      try {
+        // 1. Fetch Profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', uid)
+          .maybeSingle();
+
+        // 2. Fetch Cages
+        const { data: cages } = await supabase
+          .from('cages')
+          .select('*')
+          .eq('profile_id', uid)
+          .limit(1);
+
+        if (!active) return;
+
+        const hasCage = cages && cages.length > 0;
+
+        if (!profile) {
+          // Pengguna baru tanpa profil
+          const emailPrefix = session.user.email ? session.user.email.split('@')[0] : '';
+          const rawName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.user_metadata?.owner_name || emailPrefix || 'Peternak Pintar';
+          const ownerName = rawName.split(/[\s._-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          const { data: insertedP } = await supabase
+            .from('profiles')
+            .insert([{
+              id: uid,
+              farm_name: `${ownerName} Layer Farm`,
+              owner_name: ownerName,
+              location: 'Blitar, Jawa Timur',
+            }])
+            .select()
+            .single();
+            
+          setProfileData(insertedP);
+          setShowQuestionnaire(true);
+        } else if (!hasCage) {
+          // Profil ada tetapi onboarding kuesioner belum diisi
+          setProfileData(profile);
+          setShowQuestionnaire(true);
+        } else {
+          // Pengguna terdaftar sepenuhnya -> muat data farm
+          setProfileData(profile);
+          setCageData(cages[0]);
+          setShowQuestionnaire(false);
+          await loadFarmData(uid);
+        }
+      } catch (err) {
+        console.error('Gagal memproses data autentikasi:', err);
+      } finally {
+        isFetching = false;
+        if (active) {
           setIsCheckingAuth(false);
         }
       }
+    };
+
+    const demoModeEnabled = localStorage.getItem(DEMO_MODE_KEY) === '1';
+
+    if (demoModeEnabled) {
+      syncDemoState();
+      return;
+    }
+
+    // Centered robust auth initialization relying completely on async Supabase verification
+    const initAuth = async () => {
+      setIsCheckingAuth(true);
+      try {
+        let { data: { session } } = await supabase.auth.getSession();
+        
+        // Polling toleransi asinkron jika sesi awal kosong saat mount
+        if (!session) {
+          const hasHash = window.location.hash.includes('access_token=');
+          const maxAttempts = hasHash ? 5 : 3;
+          console.log(`[Auth] Sesi awal kosong. Menjalankan auto-restore polling (max ${maxAttempts}x)...`);
+          for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(r => setTimeout(r, 300));
+            if (!active) return;
+            const res = await supabase.auth.getSession();
+            if (res.data.session) {
+              session = res.data.session;
+              console.log('[Auth] Sesi berhasil dipulihkan secara asinkron.');
+              break;
+            }
+          }
+        }
+
+        if (!active) return;
+
+        if (session) {
+          await processSession(session);
+        } else {
+          console.warn('[Auth] Sesi kosong dan tidak dapat dipulihkan. Mengalihkan ke login...');
+          handleLogoutRedirect();
+        }
+      } catch (err) {
+        console.error('Gagal bootstrap auth:', err);
+        handleLogoutRedirect();
+      }
+    };
+
+    initAuth();
+
+    // Daftarkan listener otentikasi untuk mendeteksi perubahan state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[Auth Event] ${event}`, session?.user?.email);
+
+      if (!active) return;
+
+      const isDemo = localStorage.getItem(DEMO_MODE_KEY) === '1' || session?.user?.email === 'demo@smartpoultry.ai';
+
+      if (isDemo) {
+        syncDemoState();
+        return;
+      }
+
+      if (event === 'SIGNED_OUT') {
+        handleLogoutRedirect();
+        return;
+      }
+
+      if (session) {
+        await processSession(session);
+      }
     });
 
-    authSubscription = subscription;
-
     return () => {
-      if (authSubscription) authSubscription.unsubscribe();
+      active = false;
+      subscription.unsubscribe();
     };
   }, [navigate]);
 
@@ -1191,23 +1245,7 @@ export default function DashboardLayout() {
     }
   };
 
-  // Show premium loading skeletal screen while checking auth session or seeding
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen bg-soft-beige flex flex-col items-center justify-center select-none">
-        <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
-          {/* Pulsing ring */}
-          <div className="absolute inset-0 rounded-full border-4 border-primary-gold/10 scale-110 animate-pulse" />
-          {/* Spinner border */}
-          <div className="absolute inset-0 rounded-full border-4 border-t-primary-gold border-r-transparent border-b-transparent border-l-transparent animate-spin" />
-          {/* Egg Icon in the center */}
-          <Egg className="w-10 h-10 text-primary-gold animate-bounce" />
-        </div>
-        <h3 className="text-lg font-bold text-warm-earth tracking-wide">Menghubungkan Database Supabase...</h3>
-        <p className="text-xs text-slate-400 font-semibold mt-1">Mempersiapkan data peternakan Anda secara real-time.</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-[#f8f6f2] font-sans">
@@ -1257,6 +1295,7 @@ export default function DashboardLayout() {
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
+
           <Outlet context={{
             dailyList,
             addDailyLog,
@@ -1507,6 +1546,32 @@ export default function DashboardLayout() {
                 </div>
               </form>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Premium Loading Screen ─── */}
+      <AnimatePresence>
+        {isCheckingAuth && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#faf8f4]/95 backdrop-blur-md"
+          >
+            <div className="relative flex h-20 w-20 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-4 border-primary-gold/10" />
+              <div className="absolute inset-0 rounded-full border-4 border-t-primary-gold border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+              <Egg className="h-8 w-8 text-primary-gold/60 animate-pulse" />
+            </div>
+            <motion.h3
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mt-6 text-sm font-bold text-warm-earth tracking-wider uppercase font-sans"
+            >
+              Menghubungkan Sesi...
+            </motion.h3>
           </motion.div>
         )}
       </AnimatePresence>

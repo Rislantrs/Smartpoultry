@@ -5,6 +5,8 @@ coverage/
 .vscode/
 .DS_Store
 *.stackdump
+.temp/
+supabase/.temp/
 *.log
 .env*
 !.env.example
