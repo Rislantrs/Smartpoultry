@@ -1,2 +1,2 @@
 # Cloudflare Pages SPA routes
-/* / 200
+/* /index.html 200
