@@ -1,3 +1,9 @@
-// SPA rewrite: ensure direct requests to /index.html are not re-written again
-/index.html  /index.html  200
-/*            /index.html  200
+# Cloudflare Pages SPA routes
+/  /index.html  200
+/login  /index.html  200
+/layanan  /index.html  200
+/tentang-kami  /index.html  200
+/galeri  /index.html  200
+/testimoni  /index.html  200
+/dashboard  /index.html  200
+/dashboard/*  /index.html  200
