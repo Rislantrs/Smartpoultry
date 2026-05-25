@@ -781,7 +781,7 @@ export default function AiChatPanel({
             className={`fixed z-50 flex flex-col bg-white rounded-2xl shadow-2xl shadow-black/10 border border-[#e2e8f0] overflow-hidden ${
               isExpanded 
                 ? 'bottom-4 right-4 left-4 top-4 sm:left-auto sm:top-4 sm:w-[520px]' 
-                : 'bottom-6 right-6 w-[410px] h-[580px]'
+                : 'bottom-4 right-4 left-4 top-20 sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto sm:w-[410px] sm:h-[580px]'
             } ${isMobile ? '' : 'transition-all duration-300'}`}
           >
             {/* Header */}
