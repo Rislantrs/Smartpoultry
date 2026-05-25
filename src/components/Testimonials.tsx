@@ -54,7 +54,7 @@ export default function Testimonials() {
                 "{testimonial.content}"
               </p>
               <div>
-                <h4 className="font-bold text-warm-earth text-lg">{testimonial.name}</h4>
+                <h3 className="font-bold text-warm-earth text-lg">{testimonial.name}</h3>
                 <p className="text-sm text-terracotta">{testimonial.role}</p>
               </div>
             </motion.div>

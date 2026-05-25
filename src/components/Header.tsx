@@ -73,6 +73,7 @@ export default function Header({ onOpenLogin }: HeaderProps) {
         <button 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="xl:hidden p-2 text-warm-earth cursor-pointer hover:text-primary-gold transition-colors shrink-0"
+          aria-label={mobileMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>

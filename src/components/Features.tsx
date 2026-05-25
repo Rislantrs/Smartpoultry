@@ -162,6 +162,7 @@ export default function Features() {
                     <button 
                       onClick={() => navigate(`/layanan?tab=${service.tabId}`)}
                       className={`w-11 h-11 rounded-full flex items-center justify-center ${service.arrowBg} transition-all shadow-md cursor-pointer hover:scale-110 active:scale-90 duration-150`}
+                      aria-label={`Pelajari selengkapnya tentang ${service.title}`}
                     >
                       <ArrowRight className="w-4 h-4 text-warm-earth font-black" />
                     </button>

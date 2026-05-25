@@ -43,9 +43,9 @@ export default function Faq() {
     <section id="faq" className="relative overflow-hidden bg-soft-beige py-24 sm:py-32 select-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-20">
-          <h3 className="text-terracotta font-bold tracking-widest text-xs uppercase mb-3">
+          <span className="block text-terracotta font-bold tracking-widest text-xs uppercase mb-3">
             Pertanyaan umum
-          </h3>
+          </span>
           <h2 className="text-4xl md:text-5xl font-extrabold text-[#112211] tracking-tight leading-tight font-sans">
             Yang paling sering ditanyakan peternak
           </h2>

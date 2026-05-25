@@ -51,7 +51,7 @@ export default function About() {
                   <CheckCircle2 className="w-5 h-5 fill-primary-gold/10" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Telegram input cepat</h4>
+                  <h3 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Telegram input cepat</h3>
                   <p className="text-earth-light/80 text-sm font-medium">Peternak cukup mengetik laporan singkat dari kandang.</p>
                 </div>
               </div>
@@ -61,7 +61,7 @@ export default function About() {
                   <CheckCircle2 className="w-5 h-5 fill-primary-gold/10" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Laporan jadi rapi</h4>
+                  <h3 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Laporan jadi rapi</h3>
                   <p className="text-earth-light/80 text-sm font-medium">AI memetakan pakan, telur, mortalitas, dan vitamin otomatis.</p>
                 </div>
               </div>
@@ -71,7 +71,7 @@ export default function About() {
                   <ScanLine className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Diagnosa visual</h4>
+                  <h3 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Diagnosa visual</h3>
                   <p className="text-earth-light/80 text-sm font-medium">Foto ayam atau kotoran untuk pemeriksaan awal yang lebih cepat.</p>
                 </div>
               </div>
@@ -81,7 +81,7 @@ export default function About() {
                   <TabletSmartphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Dashboard mobile-first</h4>
+                  <h3 className="text-lg font-bold text-warm-earth mb-1 leading-tight">Dashboard mobile-first</h3>
                   <p className="text-earth-light/80 text-sm font-medium">Pantau kandang dari HP tanpa alur yang rumit.</p>
                 </div>
               </div>
