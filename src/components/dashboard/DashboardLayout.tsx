@@ -420,10 +420,15 @@ export default function DashboardLayout() {
     localStorage.removeItem('sp_demo_profile_data');
     localStorage.removeItem('sp_demo_cage_data');
     
+    // Clean all local storage tokens robustly
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+      if (key && (
+        key.includes('auth-token') ||
+        key.includes('supabase') ||
+        key.startsWith('sb-')
+      ) && key !== DEMO_MODE_KEY) {
         keysToRemove.push(key);
       }
     }
@@ -453,8 +458,6 @@ export default function DashboardLayout() {
     let isFetching = false;
     let didProcess = false;
 
-
-
     const syncDemoState = () => {
       if (!active) return;
       setIsDemoMode(true);
@@ -483,11 +486,15 @@ export default function DashboardLayout() {
       setInventoryList([]);
       setIsCheckingAuth(false);
 
-      // Clean local storage tokens
+      // Clean all local storage tokens when session is fully invalid
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        if (key && (
+          key.includes('auth-token') ||
+          key.includes('supabase') ||
+          key.startsWith('sb-')
+        ) && key !== DEMO_MODE_KEY) {
           keysToRemove.push(key);
         }
       }
@@ -515,21 +522,27 @@ export default function DashboardLayout() {
       setIsCheckingAuth(true);
       setIsDemoMode(false);
       setProfileId(uid);
-
       try {
-        // 1. Fetch Profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', uid)
-          .maybeSingle();
+        function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
+          return Promise.race([
+            promise,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error(errorMsg)), timeoutMs))
+          ]);
+        }
 
-        // 2. Fetch Cages
-        const { data: cages } = await supabase
-          .from('cages')
-          .select('*')
-          .eq('profile_id', uid)
-          .limit(1);
+        // 1. Fetch Profile with 5-second timeout
+        const { data: profile } = await withTimeout(
+          supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
+          5000,
+          'Timeout saat mengambil profil pengguna'
+        );
+
+        // 2. Fetch Cages with 5-second timeout
+        const { data: cages } = await withTimeout(
+          supabase.from('cages').select('*').eq('profile_id', uid).limit(1),
+          5000,
+          'Timeout saat mengambil data kandang'
+        );
 
         if (!active) return;
 
@@ -540,16 +553,20 @@ export default function DashboardLayout() {
           const emailPrefix = session.user.email ? session.user.email.split('@')[0] : '';
           const rawName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.user_metadata?.owner_name || emailPrefix || 'Peternak Pintar';
           const ownerName = rawName.split(/[\s._-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          const { data: insertedP } = await supabase
-            .from('profiles')
-            .insert([{
-              id: uid,
-              farm_name: `${ownerName} Layer Farm`,
-              owner_name: ownerName,
-              location: 'Blitar, Jawa Timur',
-            }])
-            .select()
-            .single();
+          const { data: insertedP } = await withTimeout(
+            supabase
+              .from('profiles')
+              .insert([{
+                id: uid,
+                farm_name: `${ownerName} Layer Farm`,
+                owner_name: ownerName,
+                location: 'Blitar, Jawa Timur',
+              }])
+              .select()
+              .single(),
+            5000,
+            'Timeout saat membuat profil pengguna baru'
+          );
             
           setProfileData(insertedP);
           setShowQuestionnaire(true);
@@ -562,7 +579,11 @@ export default function DashboardLayout() {
           setProfileData(profile);
           setCageData(cages[0]);
           setShowQuestionnaire(false);
-          await loadFarmData(uid);
+          await withTimeout(
+            loadFarmData(uid),
+            8000,
+            'Timeout saat memuat data peternakan'
+          );
         }
       } catch (err) {
         console.error('Gagal memproses data autentikasi:', err);
@@ -581,16 +602,43 @@ export default function DashboardLayout() {
       return;
     }
 
+    const checkHasSupabaseToken = () => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth-token') || key.startsWith('sb-'))) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     // Centered robust auth initialization relying completely on async Supabase verification
     const initAuth = async () => {
       setIsCheckingAuth(true);
+
+      const hasToken = checkHasSupabaseToken();
+      const hasOAuth = 
+        window.location.hash.includes('access_token=') || 
+        new URLSearchParams(window.location.search).has('code');
+
+      if (!hasToken && !hasOAuth) {
+        console.log('[Auth] Tidak ada token Supabase atau OAuth callback. Langsung mengalihkan ke login...');
+        handleLogoutRedirect();
+        return;
+      }
+
       try {
-        let { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session: initialSession } } = await Promise.race([
+          sessionPromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout saat mengambil sesi')), 4000))
+        ]);
         
-        // Polling toleransi asinkron jika sesi awal kosong saat mount
-        if (!session) {
-          const hasHash = window.location.hash.includes('access_token=');
-          const maxAttempts = hasHash ? 5 : 3;
+        let session = initialSession;
+        
+        // Polling toleransi asinkron jika terdapat OAuth callback atau token di local storage
+        if (!session && (hasOAuth || hasToken)) {
+          const maxAttempts = hasOAuth ? 15 : 3;
           console.log(`[Auth] Sesi awal kosong. Menjalankan auto-restore polling (max ${maxAttempts}x)...`);
           for (let i = 0; i < maxAttempts; i++) {
             await new Promise(r => setTimeout(r, 300));
@@ -634,6 +682,10 @@ export default function DashboardLayout() {
       }
 
       if (event === 'SIGNED_OUT') {
+        if (isCheckingAuthRef.current) {
+          console.log('[Auth Event] SIGNED_OUT diabaikan karena masih dalam proses isCheckingAuth');
+          return;
+        }
         handleLogoutRedirect();
         return;
       }

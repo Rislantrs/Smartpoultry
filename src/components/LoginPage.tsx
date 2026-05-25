@@ -25,14 +25,36 @@ export default function LoginPage() {
       return;
     }
 
+    const checkHasSupabaseToken = () => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth-token') || key.startsWith('sb-'))) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     const checkSession = async () => {
       try {
-        let { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session: initialSession } } = await Promise.race([
+          sessionPromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout saat mengambil sesi')), 4000))
+        ]);
         
-        // Polling toleransi jika ada token redirect OAuth di hash URL
-        if (!session && window.location.hash.includes('access_token=')) {
-          console.log('[Login Auth] Hash OAuth terdeteksi. Menunggu parsing sesi...');
-          for (let i = 0; i < 5; i++) {
+        let session = initialSession;
+        
+        const hasToken = checkHasSupabaseToken();
+        const hasOAuthCallback =
+          window.location.hash.includes('access_token=') ||
+          new URLSearchParams(window.location.search).has('code');
+
+        // Polling toleransi asinkron jika terdapat OAuth callback atau token di local storage
+        if (!session && (hasOAuthCallback || hasToken)) {
+          const maxAttempts = hasOAuthCallback ? 15 : 3;
+          console.log(`[Login Auth] Sesi awal kosong. Menjalankan auto-restore polling (max ${maxAttempts}x)...`);
+          for (let i = 0; i < maxAttempts; i++) {
             await new Promise(r => setTimeout(r, 300));
             if (!active) return;
             const res = await supabase.auth.getSession();
@@ -49,6 +71,20 @@ export default function LoginPage() {
           console.log('[Login Auth] Sesi aktif ditemukan. Mengalihkan ke dashboard...');
           navigate('/dashboard', { replace: true });
         } else {
+          // Clean all local storage tokens when session is fully invalid
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (
+              key.includes('auth-token') ||
+              key.includes('supabase') ||
+              key.startsWith('sb-')
+            ) && key !== DEMO_MODE_KEY) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+
           setIsCheckingAuth(false);
         }
       } catch (err) {
@@ -82,7 +118,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: `${window.location.origin}/login`
         }
       });
       if (error) throw error;
