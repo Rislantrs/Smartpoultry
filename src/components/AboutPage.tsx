@@ -298,7 +298,7 @@ export default function AboutPage() {
         </section>
 
         {/* ── SECTION 3: STATISTICS & METRICS BANNER (Hills backdrop - Image 4) ── */}
-        <section className="relative overflow-hidden h-[450px] lg:h-[400px]">
+        <section className="relative overflow-hidden h-[540px] sm:h-[480px] md:h-[450px] lg:h-[400px]">
           {/* background image */}
           <img 
             src="/assets/paralax.webp" 
@@ -309,24 +309,24 @@ export default function AboutPage() {
           <div className="absolute inset-0 bg-black/45 z-10"></div>
 
           {/* Banner content */}
-          <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center text-center text-white">
+          <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center text-center text-white pb-32 sm:pb-24 lg:pb-16">
             
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight uppercase mb-12 max-w-4xl mx-auto leading-tight font-sans">
+            <h2 className="text-xl sm:text-3xl md:text-5xl font-extrabold tracking-tight uppercase mb-4 sm:mb-8 md:mb-12 max-w-4xl mx-auto leading-tight font-sans">
               Menyehatkan Hasil Unggas Organik & <br />
               <span className="text-[#FF9F1C]">Presisi Teknologi Berkelanjutan</span>
             </h2>
 
             {/* Metrics Banner Overlay (Direct flat design from image 4) */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-6xl bg-[#FDFBF7] text-[#2C1E11] shadow-2xl rounded-t-[2.5rem] p-8 sm:p-10 border-b-0 border border-slate-200/50 flex flex-col md:flex-row gap-8 items-center justify-between z-30">
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[92%] sm:w-full max-w-6xl bg-[#FDFBF7] text-[#2C1E11] shadow-2xl rounded-t-[2.5rem] p-5 sm:p-8 md:p-10 border-b-0 border border-slate-200/50 flex flex-col md:flex-row gap-6 md:gap-8 items-center justify-between z-30">
               {/* Play video element */}
               <div className="flex shrink-0 items-center justify-center">
-                <button className="h-16 w-16 rounded-full bg-[#FF9F1C] text-[#2C1E11] flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer">
-                  <Play className="w-6 h-6 fill-current ml-1" />
+                <button className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-[#FF9F1C] text-[#2C1E11] flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer">
+                  <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current ml-1" />
                 </button>
               </div>
 
               {/* 4 Stats Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-12 flex-1 w-full text-left">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-12 flex-1 w-full text-left">
                 {[
                   { count: "678+", label: "Produk Peternakan" },
                   { count: "750+", label: "Proyek Selesai" },
@@ -334,11 +334,11 @@ export default function AboutPage() {
                   { count: "700+", label: "Peternak Ahli" }
                 ].map((stat, i) => (
                   <div key={i} className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-3xl sm:text-4xl font-black text-[#2C1E11] font-mono tracking-tight">{stat.count}</span>
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#FF9F1C]" />
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-2xl sm:text-3xl md:text-4xl font-black text-[#2C1E11] font-mono tracking-tight">{stat.count}</span>
+                      <div className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-[#FF9F1C]" />
                     </div>
-                    <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase mt-1 tracking-tight leading-tight">{stat.label}</span>
+                    <span className="text-[10px] sm:text-xs md:text-sm font-bold text-slate-500 uppercase mt-0.5 sm:mt-1 tracking-tight leading-tight">{stat.label}</span>
                   </div>
                 ))}
               </div>
