@@ -26,6 +26,8 @@
   "exclude": [
     "node_modules",
     "dist",
-    "supabase/functions"
+    "supabase/functions",
+    "smartpoultry/supabase/functions",
+    "smartpoultry"
   ]
 }

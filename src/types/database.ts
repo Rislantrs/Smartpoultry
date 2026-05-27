@@ -44,6 +44,16 @@ export interface Database {
         Insert: Omit<FinancialSalesLog, 'id' | 'created_at'>;
         Update: Partial<FinancialSalesLog>;
       };
+      telegram_links: {
+        Row: TelegramLink;
+        Insert: Omit<TelegramLink, 'id' | 'linked_at'>;
+        Update: Partial<TelegramLink>;
+      };
+      telegram_activity_logs: {
+        Row: TelegramActivityLog;
+        Insert: Omit<TelegramActivityLog, 'id' | 'created_at'>;
+        Update: Partial<TelegramActivityLog>;
+      };
     };
     Functions: Record<string, never>;
     Enums: Record<string, never>;
@@ -56,6 +66,7 @@ export interface Profile {
   owner_name: string;
   phone_number?: string | null;
   location?: string | null;
+  telegram_token?: string | null;
   created_at: string;
 }
 
@@ -146,6 +157,30 @@ export interface FinancialSalesLog {
   buyer_notes?: string | null;
   created_at: string;
 }
+
+export interface TelegramLink {
+  id: string;
+  profile_id: string;
+  chat_id: number;
+  username?: string | null;
+  first_name?: string | null;
+  linked_at: string;
+  is_active: boolean;
+  notify_daily: boolean;
+  notify_hour: number;
+  last_seen_at?: string | null;
+}
+
+export interface TelegramActivityLog {
+  id: string;
+  profile_id?: string | null;
+  chat_id: number;
+  command: string;
+  response_type?: string | null;
+  message_id?: number | null;
+  created_at: string;
+}
+
 
 // ─── Dashboard-specific view types ──────────────────────────────────
 

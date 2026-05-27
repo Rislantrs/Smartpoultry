@@ -523,9 +523,9 @@ export default function DashboardLayout() {
       setIsDemoMode(false);
       setProfileId(uid);
       try {
-        function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
+        function withTimeout<T>(promise: Promise<T> | any, timeoutMs: number, errorMsg: string): Promise<T> {
           return Promise.race([
-            promise,
+            Promise.resolve(promise),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error(errorMsg)), timeoutMs))
           ]);
         }
@@ -535,14 +535,14 @@ export default function DashboardLayout() {
           supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
           5000,
           'Timeout saat mengambil profil pengguna'
-        );
+        ) as any;
 
         // 2. Fetch Cages with 5-second timeout
         const { data: cages } = await withTimeout(
           supabase.from('cages').select('*').eq('profile_id', uid).limit(1),
           5000,
           'Timeout saat mengambil data kandang'
-        );
+        ) as any;
 
         if (!active) return;
 
@@ -566,7 +566,7 @@ export default function DashboardLayout() {
               .single(),
             5000,
             'Timeout saat membuat profil pengguna baru'
-          );
+          ) as any;
             
           setProfileData(insertedP);
           setShowQuestionnaire(true);
@@ -719,23 +719,23 @@ export default function DashboardLayout() {
         
         // Seed Daily Logs
         const seededDaily = detailedDailyLogs.map(log => mapStateDailyToDb(log, uid));
-        await supabase.from('daily_logs').insert(seededDaily);
+        await supabase.from('daily_logs').insert(seededDaily as any);
 
         // Seed Vaccination Logs
         const seededVax = vaccinationLogs.map(log => mapStateVaccineToDb(log, uid));
-        await supabase.from('vaccination_logs').insert(seededVax);
+        await supabase.from('vaccination_logs').insert(seededVax as any);
 
         // Seed Weekly Production Logs
         const seededWeekly = weeklyProductionLogs.map(log => mapStateWeeklyToDb(log, uid));
-        await supabase.from('weekly_recap_logs').insert(seededWeekly);
+        await supabase.from('weekly_recap_logs').insert(seededWeekly as any);
 
         // Seed Maintenance Logs
         const seededMaint = maintenanceLogs.map(log => mapStateMaintToDb(log, uid));
-        await supabase.from('maintenance_logs').insert(seededMaint);
+        await supabase.from('maintenance_logs').insert(seededMaint as any);
 
         // Seed Financial Sales Logs
         const seededSales = financialSalesLogs.map(log => mapStateSalesToDb(log, uid));
-        await supabase.from('financial_sales_logs').insert(seededSales);
+        await supabase.from('financial_sales_logs').insert(seededSales as any);
 
         // Reload fresh seeded values
         const reloadDaily = await supabase
@@ -846,7 +846,7 @@ export default function DashboardLayout() {
             log_date: '2026-05-14',
           }
         ];
-        await supabase.from('inventory_logs').insert(seedRows);
+        await supabase.from('inventory_logs').insert(seedRows as any);
         
         const reloadInv = await supabase
           .from('inventory_logs')
@@ -959,7 +959,7 @@ export default function DashboardLayout() {
     }
     
     // Inject the returned database UUID id into the state
-    const insertedLog = { ...log, id: data[0].id };
+    const insertedLog = { ...log, id: (data as any)[0].id };
     setDailyList(prev => [insertedLog, ...prev]);
   }, [profileId]);
 
@@ -1006,7 +1006,7 @@ export default function DashboardLayout() {
 
     if (error) throw error;
     
-    const insertedLog = { ...log, id: data[0].id };
+    const insertedLog = { ...log, id: (data as any)[0].id };
     setVaccineList(prev => [insertedLog, ...prev]);
   }, [profileId]);
 
@@ -1050,7 +1050,7 @@ export default function DashboardLayout() {
 
     if (error) throw error;
     
-    const insertedLog = { ...log, id: data[0].id };
+    const insertedLog = { ...log, id: (data as any)[0].id };
     setWeeklyList(prev => [insertedLog, ...prev]);
   }, [profileId]);
 
@@ -1094,7 +1094,7 @@ export default function DashboardLayout() {
 
     if (error) throw error;
     
-    const insertedLog = { ...log, id: data[0].id };
+    const insertedLog = { ...log, id: (data as any)[0].id };
     setMaintList(prev => [insertedLog, ...prev]);
   }, [profileId]);
 
@@ -1138,7 +1138,7 @@ export default function DashboardLayout() {
 
     if (error) throw error;
     
-    const insertedLog = { ...log, id: data[0].id };
+    const insertedLog = { ...log, id: (data as any)[0].id };
     setSalesList(prev => [insertedLog, ...prev]);
   }, [profileId]);
 
@@ -1196,7 +1196,7 @@ export default function DashboardLayout() {
       throw error;
     }
 
-    const insertedLog = data[0];
+    const insertedLog = (data as any)[0];
     setInventoryList(prev => [insertedLog, ...prev]);
   }, [profileId, inventoryList]);
 
@@ -1283,8 +1283,8 @@ export default function DashboardLayout() {
       
       await supabase.from('daily_logs').insert([starterDailyLog]);
 
-      setProfileData(pData);
-      setCageData(cData);
+      setProfileData(pData as any);
+      setCageData(cData as any);
       setShowQuestionnaire(false);
 
       // Load logs from Supabase
